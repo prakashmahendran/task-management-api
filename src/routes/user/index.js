@@ -1,6 +1,7 @@
-const { encrypt } = require("../../middleware/function");
-const { client } = require("../../database/redis");
 const { validationResult } = require('express-validator');
+const crypto = require("crypto");
+const { client } = require("../../database/redis");
+const { encrypt } = require("../../middleware/function");
 const redisClient = client();
 
 const userRoute = {
@@ -47,19 +48,20 @@ const userRoute = {
                 name,
                 password
             } = req.body;
-            const secretKey = encrypt(`${name}%${email}`);
             redisClient.hgetall(email, (err, data) => {
                 if (err) {
                     res.status(400).send(err);
                 }
                 if (!data) {
+                    const secretKey = encrypt(`${name}%${email}%${password}`);
+                    const hmacSignature = crypto.createHmac("sha256", secretKey).update(email).digest("hex");
                     redisClient.hmset(email, { name, password, secretKey }, (err) => {
                         if (err) {
                             res.status(400).send(err);
                         } else {
                             res.status(200).send({
                                 data: {
-                                    secretKey
+                                    token: `${secretKey}.${hmacSignature}`,
                                 },
                                 messge: "Successfully Registered",
                                 status: 1
@@ -120,10 +122,10 @@ const userRoute = {
                 }
                 if (data) {
                     if (data.password === password) {
-                        const secretKey = encrypt(`${data.name}%${email}`);
+                        const hmacSignature = crypto.createHmac("sha256", data.secretKey).update(email).digest("hex");
                         res.status(200).send({
                             data: {
-                                secretKey
+                                token: `${data.secretKey}.${hmacSignature}`,
                             },
                             messge: "Successfully Logged in",
                             status: 1
