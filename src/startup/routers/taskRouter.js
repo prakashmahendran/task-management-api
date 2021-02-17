@@ -4,6 +4,6 @@ const taskRoute = require("../../routes/task");
 const router = new express.Router();
 
 router.post('/', auth, taskRoute.createTask);
-router.get("/:id", auth, taskRoute.getTask);
+router.get("/", auth, taskRoute.getTask);
 
 module.exports = router;
